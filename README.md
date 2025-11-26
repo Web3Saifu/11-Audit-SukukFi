@@ -47,89 +47,32 @@ The WERC7575 smart contract system is the **blockchain settlement layer** within
 
 # Scope
 
-*See [scope.txt](https://github.com/code-423n4/2025-11-sukukfi/blob/main/scope.txt)*
-
 ### Files in scope
 
 
-| File   | Logic Contracts | Interfaces | nSLOC | Purpose | Libraries used |
-| ------ | --------------- | ---------- | ----- | -----   | ------------ |
-| /src/DecimalConstants.sol | 1| **** | 5 | ||
-| /src/ERC7575VaultUpgradeable.sol | 1| **** | 737 | |@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol<br>@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol<br>@openzeppelin/contracts/interfaces/draft-IERC6093.sol<br>@openzeppelin/contracts/utils/ReentrancyGuard.sol<br>@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol<br>@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol<br>@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol<br>@openzeppelin/contracts/utils/introspection/IERC165.sol<br>@openzeppelin/contracts/utils/math/Math.sol<br>@openzeppelin/contracts/utils/structs/EnumerableSet.sol|
-| /src/SafeTokenTransfers.sol | 1| **** | 19 | |@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol<br>@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol|
-| /src/ShareTokenUpgradeable.sol | 1| 2 | 243 | |@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol<br>@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol<br>@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol<br>@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol<br>@openzeppelin/contracts/interfaces/draft-IERC6093.sol<br>@openzeppelin/contracts/token/ERC20/IERC20.sol<br>@openzeppelin/contracts/utils/introspection/IERC165.sol<br>@openzeppelin/contracts/utils/math/Math.sol<br>@openzeppelin/contracts/utils/structs/EnumerableMap.sol|
-| /src/WERC7575ShareToken.sol | 1| 1 | 514 | |@openzeppelin/contracts/token/ERC20/ERC20.sol<br>@openzeppelin/contracts/access/Ownable.sol<br>@openzeppelin/contracts/access/Ownable2Step.sol<br>@openzeppelin/contracts/interfaces/draft-IERC6093.sol<br>@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol<br>@openzeppelin/contracts/utils/Nonces.sol<br>@openzeppelin/contracts/utils/Pausable.sol<br>@openzeppelin/contracts/utils/ReentrancyGuard.sol<br>@openzeppelin/contracts/utils/cryptography/ECDSA.sol<br>@openzeppelin/contracts/utils/cryptography/EIP712.sol<br>@openzeppelin/contracts/utils/introspection/ERC165.sol<br>@openzeppelin/contracts/utils/structs/EnumerableMap.sol|
-| /src/WERC7575Vault.sol | 1| **** | 152 | |@openzeppelin/contracts/access/Ownable.sol<br>@openzeppelin/contracts/access/Ownable2Step.sol<br>@openzeppelin/contracts/interfaces/draft-IERC6093.sol<br>@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol<br>@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol<br>@openzeppelin/contracts/utils/Pausable.sol<br>@openzeppelin/contracts/utils/ReentrancyGuard.sol<br>@openzeppelin/contracts/utils/introspection/ERC165.sol<br>@openzeppelin/contracts/utils/math/Math.sol|
-| **Totals** | **6** | **3** | **1670** | | |
+| File   | nSLOC |
+| ------ | ----- |
+|[src/DecimalConstants.sol](https://github.com/code-423n4/2025-11-sukukfi/blob/main/src/DecimalConstants.sol)| 5 |
+|[src/ERC7575VaultUpgradeable.sol](https://github.com/code-423n4/2025-11-sukukfi/blob/main/src/ERC7575VaultUpgradeable.sol)| 737 |
+|[src/SafeTokenTransfers.sol](https://github.com/code-423n4/2025-11-sukukfi/blob/main/src/SafeTokenTransfers.sol)| 19 |
+|[src/ShareTokenUpgradeable.sol](https://github.com/code-423n4/2025-11-sukukfi/blob/main/src/ShareTokenUpgradeable.sol)| 243 |
+|[src/WERC7575ShareToken.sol](https://github.com/code-423n4/2025-11-sukukfi/blob/main/src/WERC7575ShareToken.sol)| 514 |
+|[src/WERC7575Vault.sol](https://github.com/code-423n4/2025-11-sukukfi/blob/main/src/WERC7575Vault.sol)| 152 |
+|**Totals**| **1670** |
+
+*For a machine-readable version, see [scope.txt](https://github.com/code-423n4/2025-11-sukukfi/blob/main/scope.txt)*
 
 ### Files out of scope
 
-*See [out_of_scope.txt](https://github.com/code-423n4/2025-11-sukukfi/blob/main/out_of_scope.txt)*
-
 | File         |
 | ------------ |
-| ./src/ERC20Faucet.sol |
-| ./src/ERC20Faucet6.sol |
-| ./src/interfaces/IERC7540.sol |
-| ./src/interfaces/IERC7575.sol |
-| ./src/interfaces/IERC7575Errors.sol |
-| ./src/interfaces/IERC7575MultiAsset.sol |
-| ./src/interfaces/IERC7887.sol |
-| ./src/interfaces/IVaultMetrics.sol |
-| ./test/AdditionalSecurityAndEdgeCases.t.sol |
-| ./test/AdminRoleManagement.t.sol |
-| ./test/ApprovalAndSignatureMechanisms.t.sol |
-| ./test/AuditReproduction.t.sol |
-| ./test/CompleteFlowWalkthrough.t.sol |
-| ./test/ComprehensiveERC7540ERC7575Test.t.sol |
-| ./test/ComprehensiveHelperFunctions.t.sol |
-| ./test/ComprehensiveVault.t.sol |
-| ./test/ERC20Faucet6DecimalsWERC7575.t.sol |
-| ./test/ERC7540AsyncEdgeCases.t.sol |
-| ./test/ERC7540ComplianceComplete.t.sol |
-| ./test/ERC7540MaxFunctionsTest.t.sol |
-| ./test/ERC7575MultiAsset.t.sol |
-| ./test/ERC7575Security.t.sol |
-| ./test/ERC7575Upgradeable.t.sol |
-| ./test/ERC7575VaultUpgradeableCoverageTests.t.sol |
-| ./test/ERC7887Compliance.t.sol |
-| ./test/EdgeCases_AuthorizationPaths.t.sol |
-| ./test/EdgeCases_ComputeRBalanceFlags.t.sol |
-| ./test/EdgeCases_KYC.t.sol |
-| ./test/EdgeCases_MinimumDepositBoundary.t.sol |
-| ./test/EdgeCases_RBatchTransfers_Capping.t.sol |
-| ./test/EdgeCases_VaultStateTransitions.t.sol |
-| ./test/EdgeCases_ZeroAmounts.t.sol |
-| ./test/ForkUpgradeNoCheat.t.sol |
-| ./test/GetInvestedAssetsWithRBalance.t.sol |
-| ./test/MaxFunctionsBehaviorTest.t.sol |
-| ./test/MixedDecimalYieldAccuracy.t.sol |
-| ./test/MockAsset.sol |
-| ./test/MockAssetTest.sol |
-| ./test/MultiStablecoinYieldScenarios.t.sol |
-| ./test/MultiVaultEnumeration.t.sol |
-| ./test/OffChainHelperFunctions.t.sol |
-| ./test/OperatorInterfaceCompliance.t.sol |
-| ./test/OperatorRedemptionTest.t.sol |
-| ./test/OutstandingSharesValidation.t.sol |
-| ./test/OverflowProtection.t.sol |
-| ./test/PaginationEfficiencyTest.t.sol |
-| ./test/PauseFunctionality.t.sol |
-| ./test/PreAuditCriticalTests.t.sol |
-| ./test/RegisterVaultInvestmentConfig.t.sol |
-| ./test/ShareTokenCompliance.t.sol |
-| ./test/ShareTokenSimpleTest.t.sol |
-| ./test/ShareTokenUpgradeableCoverageTests.t.sol |
-| ./test/SimpleUpgradeDemo.t.sol |
-| ./test/TotalNormalizedAssetsTest.t.sol |
-| ./test/TotalPendingRedeemAssetsTest.t.sol |
-| ./test/VaultDeactivation.t.sol |
-| ./test/WERC7575.t.sol |
-| ./test/WERC7575Inflation.t.sol |
-| ./test/WERC7575ShareTokenCoverageTests.t.sol |
-| ./test/WERC7575VaultCoverageTests.t.sol |
-| ./test/WorkingUpgradeDemo.t.sol |
+|[src/ERC20Faucet.sol](https://github.com/code-423n4/2025-11-sukukfi/blob/main/src/ERC20Faucet.sol)|
+|[src/ERC20Faucet6.sol](https://github.com/code-423n4/2025-11-sukukfi/blob/main/src/ERC20Faucet6.sol)|
+|[src/interfaces/\*\*.\*\*](https://github.com/code-423n4/2025-11-sukukfi/tree/main/src/interfaces)|
+|[test/\*\*.\*\*](https://github.com/code-423n4/2025-11-sukukfi/tree/main/test)|
 | Totals: 61 |
+
+*For a machine-readable version, see [out_of_scope.txt](https://github.com/code-423n4/2025-11-sukukfi/blob/main/out_of_scope.txt)*
 
 # Additional context
 
