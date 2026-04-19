@@ -17,6 +17,28 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
+/**_asset = real money
+_shareToken = system receipt token
+_scalingFactor = math bridge
+_isActive = emergency switch
+
+
+1. previewDeposit(100)
+   → convert assets → shares
+
+2. safeTransferFrom(user → vault, 100 USDC)
+
+3. shareToken.mint(user, shares)
+
+4. emit Deposit event
+
+
+
+Assets go INTO vault
+Shares go TO user
+*/
+
+
 contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausable, IERC7575Errors {
     using SafeERC20 for IERC20Metadata;
 
@@ -41,10 +63,10 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
 
     event VaultActiveStateChanged(bool indexed isActive);
 
-    address private _asset; // 20 bytes
-    uint64 private _scalingFactor; // 8 bytes
+    address private _asset; // 20 bytes//_asset → always points to USDC contract
+    uint64 private _scalingFactor; // 8 bytes//converts
     bool private _isActive; // 1 byte - packs with _asset and _scalingFactor in same slot
-    WERC7575ShareToken private _shareToken;
+    WERC7575ShareToken private _shareToken;  //@audit-info _shareToken is the ERC20 “receipt token” contract that represents ownership of the vault.
 
     /**
      * @dev Initializes a synchronous ERC4626 vault for the multi-asset system (ERC7575 compliant)
@@ -88,17 +110,17 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
     constructor(address asset_, WERC7575ShareToken shareToken_) Ownable(msg.sender) {
         // Validate asset compatibility
         uint8 assetDecimals;
-        try IERC20Metadata(asset_).decimals() returns (uint8 decimals) {
+        try IERC20Metadata(asset_).decimals() returns (uint8 decimals) {//USDC returns → 6
             if (decimals < DecimalConstants.MIN_ASSET_DECIMALS || decimals > DecimalConstants.SHARE_TOKEN_DECIMALS) {
                 revert UnsupportedAssetDecimals();
             }
-            assetDecimals = decimals;
+            assetDecimals = decimals;//Store verified decimals for later use in scaling factor calculation
         } catch {
             revert AssetDecimalsFailed();
         }
         // Validate share token compatibility and enforce 18 decimals
         if (address(shareToken_) == address(0)) revert ZeroAddress();
-        if (shareToken_.decimals() != DecimalConstants.SHARE_TOKEN_DECIMALS) {
+        if (shareToken_.decimals() != DecimalConstants.SHARE_TOKEN_DECIMALS) {//shares are always in 18-decimal precision system
             revert WrongDecimals();
         }
 
@@ -108,8 +130,8 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
         if (scalingFactor > type(uint64).max) revert ScalingFactorTooLarge();
 
         _asset = asset_;
-        _scalingFactor = uint64(scalingFactor);
-        _isActive = true; // Vault is active by default
+        _scalingFactor = uint64(scalingFactor);//“how to convert USDC → shares”
+        _isActive = true; // Vault is active by default    vault is OPEN immediately after deployment
         _shareToken = shareToken_;
 
         // Note: Owner must separately call shareToken.registerVault(asset, vault) after deployment
@@ -151,8 +173,9 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
      * @dev Returns true if this contract implements the interface defined by interfaceId
      * @param interfaceId The interface identifier, as specified in ERC-165
      * @return bool True if the contract implements interfaceId
+     * //If someone asks:
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165) returns (bool) {//This function checks whether the contract supports a specific interface (ERC-165 standard).         If someone asks:“Do you support ERC7575?”
         return interfaceId == type(IERC7575).interfaceId || super.supportsInterface(interfaceId);
     }
 
@@ -160,7 +183,7 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
      * @dev Returns the address of the share token contract
      * @return address The ERC7575 share token address
      */
-    function share() external view returns (address) {
+    function share() external view returns (address) {//“Which token represents ownership of this vault?”
         return address(_shareToken);
     }
 
@@ -168,7 +191,7 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
      * @dev Returns the address of the underlying asset token
      * @return address The ERC20 asset token address
      */
-    function asset() external view returns (address) {
+    function asset() external view returns (address) {//_asset = USDC contract address
         return _asset;
     }
 
@@ -176,7 +199,7 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
      * @dev Returns the total amount of underlying assets held by the vault
      * @return uint256 Total assets held in the vault
      */
-    function totalAssets() public view returns (uint256) {
+    function totalAssets() public view returns (uint256) {//Returns how much real USDC is inside the vault right now.
         return IERC20Metadata(_asset).balanceOf(address(this));
     }
 
@@ -212,11 +235,11 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
      * - No first depositor attack possible since conversion is deterministic
      * - No manipulation possible since no dependency on totalSupply or totalAssets
      */
-    function _convertToShares(uint256 assets, Math.Rounding rounding) internal view returns (uint256) {
+    function _convertToShares(uint256 assets, Math.Rounding rounding) internal view returns (uint256) {//Shares = Assets × scalingFactor,,  Floor, // round down  Ceil // round up
         // ShareToken always has 18 decimals, assetDecimals ∈ [6, 18]
         // shares = assets * _scalingFactor where _scalingFactor = 10^(18 - assetDecimals)
         // Use Math.mulDiv to prevent overflow on large amounts
-        return Math.mulDiv(assets, uint256(_scalingFactor), 1, rounding);
+        return Math.mulDiv(assets, uint256(_scalingFactor), 1, rounding);//scalingFactor   = 10^12
     }
 
     /**
@@ -321,7 +344,7 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
      * @param shares Amount of shares to mint
      * @param receiver Address to receive shares
      */
-    function _deposit(uint256 assets, uint256 shares, address receiver) internal {
+    function _deposit(uint256 assets, uint256 shares, address receiver) internal {//👉 This function takes USDC from user and gives them shares   msg.sender and receiver can be same OR different
         if (!_isActive) revert VaultNotActive();
         if (receiver == address(0)) {
             revert IERC20Errors.ERC20InvalidReceiver(address(0));
@@ -329,9 +352,9 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
         if (assets == 0) revert ZeroAssets();
         if (shares == 0) revert ZeroShares();
 
-        SafeTokenTransfers.safeTransferFrom(_asset, msg.sender, address(this), assets);
+        SafeTokenTransfers.safeTransferFrom(_asset, msg.sender, address(this), assets);//👉 Move USDC from user → vault    Alice → Vault: 100 USDC
 
-        _shareToken.mint(receiver, shares);
+        _shareToken.mint(receiver, shares);//Alice gets 100 shares
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
@@ -404,10 +427,10 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
         if (assets == 0) revert ZeroAssets();
         if (shares == 0) revert ZeroShares();
 
-        _shareToken.spendSelfAllowance(owner, shares);
-        _shareToken.burn(owner, shares);
+        _shareToken.spendSelfAllowance(owner, shares);//Only owner OR approved spender can burn shares
+        _shareToken.burn(owner, shares);//"User is exiting the vault"
         SafeTokenTransfers.safeTransfer(_asset, receiver, assets);
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);//_asset = stored token addressm.,,receiver gets the money ,,The vault sends tokens (_asset like USDC) to receiver
     }
 
     /**

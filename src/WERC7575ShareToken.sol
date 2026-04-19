@@ -26,7 +26,7 @@ interface IERC7575Vault {
     function totalAssets() external view returns (uint256);
 }
 
-/**
+/** 
  * @title WERC7575ShareToken (Wrapped ERC20 Share Token)
  * @notice NON-STANDARD ERC-20 IMPLEMENTATION WITH RESTRICTED TRANSFERS
  *
@@ -80,20 +80,20 @@ interface IERC7575Vault {
  * See documentation for detailed integration guidelines and risk assessment.
  */
 contract WERC7575ShareToken is ERC20, IERC20Permit, EIP712, Nonces, ReentrancyGuard, Ownable2Step, ERC165, Pausable, IERC7575Errors {
-    using EnumerableMap for EnumerableMap.AddressToAddressMap;
+    using EnumerableMap for EnumerableMap.AddressToAddressMap;//using EnumerableMap → Enables iterable mapping for managing asset ↔ vault relationships efficiently.
 
     // Note: Common errors now inherited from IERC7575Errors interface
     // OnlyOwner is inherited from IERC7575Errors
 
     // WERC7575-specific errors
-    error ArrayTooLarge();
-    error ArrayLengthMismatch();
-    error LowBalance();
-    error ShareTokenZeroValidator();
-    error KycRequired();
-    error RBalanceAdjustmentAlreadyApplied();
-    error FutureTimestampNotAllowed();
-    error MaxReturnMultiplierExceeded();
+    error ArrayTooLarge();//Prevents oversized batch input arrays.
+    error ArrayLengthMismatch();//ArrayLengthMismatch → Ensures related arrays have equal length.
+    error LowBalance();//LowBalance → Prevents operations when balance is insufficient.
+    error ShareTokenZeroValidator();//ShareTokenZeroValidator → Prevents setting validator to zero address.
+    error KycRequired();//KycRequired → Blocks actions if user is not KYC verified.
+    error RBalanceAdjustmentAlreadyApplied();//Prevents duplicate revenue adjustments.
+    error FutureTimestampNotAllowed();//FutureTimestampNotAllowed → Disallows invalid future timestamps.
+    error MaxReturnMultiplierExceeded();//MaxReturnMultiplierExceeded → Disallows return multipliers exceeding the maximum.
     error NoRBalanceAdjustmentFound();
     error OnlyValidator();
     error AmountTooLarge();
@@ -106,42 +106,43 @@ contract WERC7575ShareToken is ERC20, IERC20Permit, EIP712, Nonces, ReentrancyGu
     // Maximum batch size to prevent exceeding block gas limits
     // Calculated as: 30M gas limit / 25k per transfer ≈ 1000, conservatively set to 100
     // to leave headroom for complex transfers and other operations
-    uint256 private constant MAX_BATCH_SIZE = 100;
+    uint256 private constant MAX_BATCH_SIZE = 100;//👉 Batch = doing many actions in one transaction
 
     // Maximum allowed return multiplier (100% profit cap)
     // Protects against validator input errors and unrealistic returns
     // Value chosen to allow reasonable investment gains while preventing mistakes
-    uint256 private constant MAX_RETURN_MULTIPLIER = 2;
+    uint256 private constant MAX_RETURN_MULTIPLIER = 2;//👉 This is about profit calculation/User invests: $100 ,,System returns: $200
+
 
     // Batch array size multiplier for worst-case scenario
     // Allocates 2x space: 1 entry per debtor + 1 entry per creditor
     // Handles case where no addresses overlap between debtors and creditors
-    uint256 private constant BATCH_ARRAY_MULTIPLIER = 2;
+    uint256 private constant BATCH_ARRAY_MULTIPLIER = 2;//👉 Cap = Limit / Maximum allowed
 
     // Maximum number of vaults per share token - DoS mitigation
     // Prevents unbounded iteration in vault aggregation functions
-    uint256 private constant MAX_VAULTS_PER_SHARE_TOKEN = 10;
+    uint256 private constant MAX_VAULTS_PER_SHARE_TOKEN = 10;//One ShareToken can connect to multiple vaults
 
-    mapping(address => uint256) private _balances;
-    mapping(address => uint256) private _rBalances;
-    mapping(address => mapping(uint256 => uint256[2])) private _rBalanceAdjustments;
-    uint256 private _totalSupply;
+    mapping(address => uint256) private _balances;//_balances → Stores how many share tokens each user owns.
+    mapping(address => uint256) private _rBalances;//Stores a special “adjusted/revenue balance” for each user used for internal accounting (not the normal token balance).
+    mapping(address => mapping(uint256 => uint256[2])) private _rBalanceAdjustments;//Stores history of revenue adjustments per user using a timestamp/key to track invested amount and received amount.
+    uint256 private _totalSupply;//_totalSupply → Stores the total number of share tokens that exist in the system.
 
-    mapping(address => bool) public isKycVerified;
+    mapping(address => bool) public isKycVerified;//Stores whether a user is KYC approved (true = allowed to interact, false = blocked
 
     // Multi-vault support as per ERC7575 with EnumerableMap for better management
-    EnumerableMap.AddressToAddressMap private _assetToVault; // asset => vault mapping with enumeration
-    mapping(address => address) private _vaultToAsset; // vault => asset (for quick reverse lookup and authorization)
+    EnumerableMap.AddressToAddressMap private _assetToVault; // asset => vault mapping with enumeration//@audit-issue where is  the mapping for vault to asser? for 265 line
+    mapping(address => address) private _vaultToAsset; // 👉 Connects each asset to its vault,,USDC → USDC Vault,,USDT → USDT Vault
 
-    address private _validator; // Controls batchTransfers and permit operations
-    address private _kycAdmin; // Controls KYC verification
-    address private _revenueAdmin; // Controls rBalance adjustments
+    address private _validator; //👉 Only this address can approve users
+    address private _kycAdmin; // 👉 Without this → Alice cannot use system
+    address private _revenueAdmin; // 👉 Controls profit / adjustment logic (rBalance system)
 
     error ERC2612ExpiredSignature(uint256 deadline);
     error ERC2612InvalidSigner(address signer, address owner);
     error OnlyKycAdmin();
     error OnlyRevenueAdmin();
-    error ShareTokenZeroKycAdmin();
+    error ShareTokenZeroKycAdmin();//→ “Invalid admin, system cannot run without controller”
     error ShareTokenZeroRevenueAdmin();
 
     event RBalanceAdjusted(address indexed account, uint256 amountInvested, uint256 amountReceived);
@@ -215,13 +216,13 @@ contract WERC7575ShareToken is ERC20, IERC20Permit, EIP712, Nonces, ReentrancyGu
      * - Vault's share() must match this ShareToken address
      * - Only callable by owner
      */
-    function registerVault(address asset, address vaultAddress) external onlyOwner {
-        if (asset == address(0)) revert ZeroAddress();
-        if (vaultAddress == address(0)) revert ZeroAddress();
-        if (_assetToVault.contains(asset)) revert AssetAlreadyRegistered();
+    function registerVault(address asset, address vaultAddress) external onlyOwner {//“Register a new bank branch and link it to a specific money type.”
+        if (asset == address(0)) revert ZeroAddress();//👉 Asset cannot be empty
+        if (vaultAddress == address(0)) revert ZeroAddress();//👉 Vault cannot be empty
+        if (_assetToVault.contains(asset)) revert AssetAlreadyRegistered();//👉 One asset = only ONE vault allowed,,USDC → Vault A,,USDC → Vault B
 
         // Validate that vault's asset matches the provided asset parameter
-        if (IERC7575(vaultAddress).asset() != asset) revert AssetMismatch();
+        if (IERC7575(vaultAddress).asset() != asset) revert AssetMismatch();//👉 Vault must say “I manage USDC” if you register USDC
 
         // Validate that vault's share token matches this ShareToken
         if (IERC7575(vaultAddress).share() != address(this)) {
@@ -229,15 +230,15 @@ contract WERC7575ShareToken is ERC20, IERC20Permit, EIP712, Nonces, ReentrancyGu
         }
 
         // DoS mitigation: Enforce maximum vaults per share token to prevent unbounded loops
-        if (_assetToVault.length() >= MAX_VAULTS_PER_SHARE_TOKEN) {
+        if (_assetToVault.length() >= MAX_VAULTS_PER_SHARE_TOKEN) {//If the count is 10 or more, it stops new vault registration.
             revert MaxVaultsExceeded();
         }
 
         // Register new vault (automatically adds to enumerable collection)
-        _assetToVault.set(asset, vaultAddress);
-        _vaultToAsset[vaultAddress] = asset;
+        _assetToVault.set(asset, vaultAddress);//✔ 9 < 10 → new vault allowed
+        _vaultToAsset[vaultAddress] = asset;//❌ 10 >= 10 → revert MaxVaultsExceeded()
 
-        emit VaultUpdate(asset, vaultAddress);
+        emit VaultUpdate(asset, vaultAddress);//👉 “USDC is now connected to VaultA”
     }
 
     /**
@@ -252,26 +253,31 @@ contract WERC7575ShareToken is ERC20, IERC20Permit, EIP712, Nonces, ReentrancyGu
      * - Vault must exist and be registered
      * - Vault must have zero assets remaining (no user funds at risk)
      * - Only callable by owner
+     * 
+     *   @audit-info  _assetToVault = {
+       USDC → VaultA,
+       USDT → VaultB
+       }
      */
-    function unregisterVault(address asset) external onlyOwner {
+    function unregisterVault(address asset) external onlyOwner {//👉 This function removes a vault from the system only if it holds ZERO funds (to protect users).,,asset = USDC,,vaultAddress = VaultA
         if (asset == address(0)) revert ZeroAddress();
-        if (!_assetToVault.contains(asset)) revert AssetNotRegistered();
+        if (!_assetToVault.contains(asset)) revert AssetNotRegistered();//👉 USDC must already have a vault
 
-        address vaultAddress = _assetToVault.get(asset);
+        address vaultAddress = _assetToVault.get(asset);//USDC → VaultA
 
         // SAFETY CHECK: Validate that vault has no outstanding assets that users could claim
         // In this architecture, we check vault's total assets rather than share supply
         // since shares are managed by this ShareToken contract, not the vault
-        try IERC7575Vault(vaultAddress).totalAssets() returns (uint256 totalAssets) {
-            if (totalAssets != 0) revert CannotUnregisterVaultAssetBalance();
-        } catch {
-            // If we can't verify the vault has no assets, we can't safely unregister
-            // This prevents unregistration if the vault is malicious or has interface issues
+        try IERC7575Vault(vaultAddress).totalAssets() returns (uint256 totalAssets) {//“VaultA, how much money do you currently hold?”
+            if (totalAssets != 0) revert CannotUnregisterVaultAssetBalance();//“Users still have 500 tokens inside → cannot remove vault”
+        } catch {//if Vault crashes / malicious / function missing
+            /// If we can't verify the vault has no assets, we can't safely unregister
+            /// This prevents unregistration if the vault is malicious or has interface issues
             revert("ShareToken: cannot verify vault has no outstanding assets");
         }
-        // Additional safety: Check if vault still has any assets to prevent user fund loss
+        /// Additional safety: Check if vault still has any assets to prevent user fund loss
         // This is a double-check using ERC20 interface in case totalAssets() is manipulated
-        try ERC20(asset).balanceOf(vaultAddress) returns (uint256 vaultBalance) {
+        try ERC20(asset).balanceOf(vaultAddress) returns (uint256 vaultBalance) {//“How many USDC are stored in VaultA?”
             if (vaultBalance != 0) revert CannotUnregisterVaultAssetBalance();
         } catch {
             // If we can't check the asset balance in vault, err on the side of caution
