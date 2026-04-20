@@ -454,8 +454,8 @@ contract WERC7575Vault is IERC7575, ERC165, ReentrancyGuard, Ownable2Step, Pausa
      *
      * @return shares Amount of shares burned
      */
-    function withdraw(uint256 assets, address receiver, address owner) public nonReentrant whenNotPaused returns (uint256 shares) {
-        shares = previewWithdraw(assets);
+    function withdraw(uint256 assets, address receiver, address owner) public nonReentrant whenNotPaused returns (uint256 shares) {//“I want X amount of money (assets) → how many shares do I need to burn?”
+        shares = previewWithdraw(assets);//👉 Converts assets → shares
         _withdraw(assets, shares, receiver, owner);
     }
 
