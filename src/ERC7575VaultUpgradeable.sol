@@ -828,7 +828,7 @@ contract ERC7575VaultUpgradeable is Initializable, ReentrancyGuard, Ownable2Step
             revert ERC20InsufficientBalance(address(this), pendingShares, shares);
         }
 
-        assets = _convertToAssets(shares, Math.Rounding.Floor);
+        assets = _convertToAssets(shares, Math.Rounding.Floor);//?
 
         $.pendingRedeemShares[controller] -= shares;
         $.claimableRedeemAssets[controller] += assets;

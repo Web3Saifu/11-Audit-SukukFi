@@ -279,26 +279,26 @@ contract ShareTokenUpgradeable is Initializable, ERC20Upgradeable, Ownable2StepU
      *
      * @custom:event VaultUpdate(asset, address(0))
      */
-    function unregisterVault(address asset) external onlyOwner {
+    function unregisterVault(address asset) external onlyOwner {//👉 Removes a vault from the system
         if (asset == address(0)) revert ZeroAddress();
         ShareTokenStorage storage $ = _getShareTokenStorage();
 
-        (bool exists, address vaultAddress) = $.assetToVault.tryGet(asset);
+        (bool exists, address vaultAddress) = $.assetToVault.tryGet(asset);//Is this asset registered?,,Get its vault
         if (!exists) revert AssetNotRegistered();
 
         // COMPREHENSIVE SAFETY CHECK: Ensure vault has no user funds at risk
         // This covers pending deposits, claimable redemptions, ERC7887 cancelations, and any remaining assets
 
         // 1. Check vault metrics for pending requests, active users, and ERC7887 cancelation assets
-        try IVaultMetrics(vaultAddress).getVaultMetrics() returns (IVaultMetrics.VaultMetrics memory metrics) {
-            if (metrics.isActive) revert CannotUnregisterActiveVault();
-            if (metrics.totalPendingDepositAssets != 0) {
+        try IVaultMetrics(vaultAddress).getVaultMetrics() returns (IVaultMetrics.VaultMetrics memory metrics) {//“Is this vault completely safe to remove without harming users?”
+            if (metrics.isActive) revert CannotUnregisterActiveVault();//Vault is still operating → cannot remove
+            if (metrics.totalPendingDepositAssets != 0) {//👉 users have money waiting to be processed
                 revert CannotUnregisterVaultPendingDeposits();
             }
-            if (metrics.totalClaimableRedeemAssets != 0) {
+            if (metrics.totalClaimableRedeemAssets != 0) {//👉 users waiting to withdraw funds
                 revert CannotUnregisterVaultClaimableRedemptions();
             }
-            if (metrics.totalCancelDepositAssets != 0) {
+            if (metrics.totalCancelDepositAssets != 0) {//👉 some assets still in cancel flow
                 revert CannotUnregisterVaultAssetBalance();
             }
             if (metrics.activeDepositRequestersCount != 0) {
@@ -316,11 +316,11 @@ contract ShareTokenUpgradeable is Initializable, ERC20Upgradeable, Ownable2StepU
         // If this happens, there is either a bug in the vault
         // or assets were sent to the vault without directly
         if (IERC20(asset).balanceOf(vaultAddress) != 0) {
-            revert CannotUnregisterVaultAssetBalance();
+            revert CannotUnregisterVaultAssetBalance();//“Check if the vault still holds any real ERC20 tokens of this asset.”
         }
 
         // Remove vault registration (automatically removes from enumerable collection)
-        $.assetToVault.remove(asset);
+        $.assetToVault.remove(asset);//“This asset no longer has any vault in system”
         delete $.vaultToAsset[vaultAddress];
 
         emit VaultUpdate(asset, address(0));
