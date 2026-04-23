@@ -698,13 +698,13 @@ contract ShareTokenUpgradeable is Initializable, ERC20Upgradeable, Ownable2StepU
      * @param rounding Rounding mode for the conversion
      * @return shares Amount of shares equivalent to the normalized assets
      */
-    function convertNormalizedAssetsToShares(uint256 normalizedAssets, Math.Rounding rounding) external view returns (uint256 shares) {
+    function convertNormalizedAssetsToShares(uint256 normalizedAssets, Math.Rounding rounding) external view returns (uint256 shares) {//👉 Converts assets → shares
         // Get both values in a single call
-        (uint256 circulatingSupply, uint256 totalNormalizedAssets) = this.getCirculatingSupplyAndAssets();
+        (uint256 circulatingSupply, uint256 totalNormalizedAssets) = this.getCirculatingSupplyAndAssets();//circulatingSupply shares actively owned by users,, total value of vault
 
         // Add virtual amounts for inflation protection
-        circulatingSupply += VIRTUAL_SHARES;
-        totalNormalizedAssets += VIRTUAL_ASSETS;
+        circulatingSupply += VIRTUAL_SHARES;//circulatingSupply = 1000 + 1,000,000
+        totalNormalizedAssets += VIRTUAL_ASSETS;//totalAssets = 2000 + 1,000,000
 
         // shares = normalizedAssets * circulatingSupply / totalNormalizedAssets
         shares = Math.mulDiv(normalizedAssets, circulatingSupply, totalNormalizedAssets, rounding);

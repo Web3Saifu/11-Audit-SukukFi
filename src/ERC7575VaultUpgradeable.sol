@@ -819,16 +819,16 @@ contract ERC7575VaultUpgradeable is Initializable, ReentrancyGuard, Ownable2Step
      * @custom:throws ZeroShares If shares parameter is 0
      * @custom:throws InsufficientBalance If shares > pendingRedeemShares[controller]
      */
-    function fulfillRedeem(address controller, uint256 shares) public nonReentrant returns (uint256 assets) {
+    function fulfillRedeem(address controller, uint256 shares) public nonReentrant returns (uint256 assets) {//Convert pending redeem shares → claimable fixed asset value
         VaultStorage storage $ = _getVaultStorage();
-        if (msg.sender != $.investmentManager) revert OnlyInvestmentManager();
+        if (msg.sender != $.investmentManager) revert OnlyInvestmentManager();//IF caller is NOT the investment manager → STOP
         if (shares == 0) revert ZeroShares();
-        uint256 pendingShares = $.pendingRedeemShares[controller];
-        if (shares > pendingShares) {
-            revert ERC20InsufficientBalance(address(this), pendingShares, shares);
+        uint256 pendingShares = $.pendingRedeemShares[controller];//How many shares this user requested to redeem earlier
+        if (shares > pendingShares) {//Manager is trying to fulfill MORE than what exists
+            revert ERC20InsufficientBalance(address(this), pendingShares, shares);//STOP execution immediately
         }
 
-        assets = _convertToAssets(shares, Math.Rounding.Floor);//?
+        assets = _convertToAssets(shares, Math.Rounding.Floor);//Take user’s shares → calculate how much money they are worth RIGHT NOW
 
         $.pendingRedeemShares[controller] -= shares;
         $.claimableRedeemAssets[controller] += assets;
@@ -993,10 +993,10 @@ contract ERC7575VaultUpgradeable is Initializable, ReentrancyGuard, Ownable2Step
      */
     function fulfillCancelDepositRequest(address controller) external returns (uint256 assets) {
         VaultStorage storage $ = _getVaultStorage();
-        if (msg.sender != $.investmentManager) revert OnlyInvestmentManager();
+        if (msg.sender != $.investmentManager) revert OnlyInvestmentManager();//Investment Manager honest & correct controllers list দেবে
 
-        assets = $.pendingCancelDepositAssets[controller];
-        if (assets == 0) revert NoPendingCancelDeposit();
+        assets = $.pendingCancelDepositAssets[controller];//👉 Get how much money the user asked to cancel from deposit.
+        if (assets == 0) revert NoPendingCancelDeposit();//👉 If nothing is pending → stop.
 
         // Move from pending to claimable cancelation state
         delete $.pendingCancelDepositAssets[controller];
@@ -1203,16 +1203,16 @@ contract ERC7575VaultUpgradeable is Initializable, ReentrancyGuard, Ownable2Step
      */
     function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view returns (uint256 assets) {
         VaultStorage storage $ = _getVaultStorage();
-        uint256 scaling = $.scalingFactor;
+        uint256 scaling = $.scalingFactor;//Used to adjust decimal differences between tokens
         // Use optimized ShareToken conversion method (single call instead of multiple)
-        uint256 normalizedAssets = ShareTokenUpgradeable($.shareToken).convertSharesToNormalizedAssets(shares, rounding);
+        uint256 normalizedAssets = ShareTokenUpgradeable($.shareToken).convertSharesToNormalizedAssets(shares, rounding);//call external contract function,,shares → ShareToken → NAV calculation → normalized asset value
 
         // Then denormalize back to original asset decimals
         if (scaling == 1) {
             return normalizedAssets;
         } else {
-            return Math.mulDiv(normalizedAssets, 1, scaling, rounding);
-        }
+            return Math.mulDiv(normalizedAssets, 1, scaling, rounding);//normalizedAssets = internal system এ বড় precision (18 decimal) value
+        }//scaling = decimal difference adjust করার number
     }
 
     /**
