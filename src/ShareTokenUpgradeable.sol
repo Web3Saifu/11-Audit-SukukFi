@@ -210,6 +210,7 @@ contract ShareTokenUpgradeable is Initializable, ERC20Upgradeable, Ownable2StepU
         if ($.assetToVault.length() >= MAX_VAULTS_PER_SHARE_TOKEN) {
             revert MaxVaultsExceeded();
         }
+        
 
         // Register new vault - set() returns true if newly added, false if already existed
         if (!$.assetToVault.set(asset, vaultAddress)) {
